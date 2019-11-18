@@ -97,6 +97,9 @@ export default class EventsManager extends EmitAble implements IEventsManger {
   onUp = (e: MouseEvent & TouchEvent) => {
     this.isDown = false;
     e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    const { x, y } = this.getEventPoint(point);
+    this.fire("point-up", { x, y });
   };
   onMouseWheel = (e: MouseWheelEvent) => {
     e.preventDefault();

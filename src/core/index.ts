@@ -3,7 +3,10 @@ import store from "./store";
 import Store from "../helpers/store";
 import { EmitAble } from "../helpers/utils";
 import EventsManager from "./events-manager";
+import ImageModel from "./image-model";
 import { AnyObj } from "../types/index";
+import Ring from "../helpers/ring";
+import * as utils from "../helpers/utils";
 
 const dftOptions = {
   autoplay: true,
@@ -12,8 +15,20 @@ const dftOptions = {
   zoomable: true,
   touchable: true,
   doubleClickZoom: true,
+  imageFit: "contain",
   devicePixelRatio: window.devicePixelRatio || 1
 };
+
+function getImageModel(url: string) {
+  let model = this.imageModelMap[url];
+  if (!model) {
+    model = this.imageModelMap[url] = new ImageModel({
+      imageUrl: url,
+      store: this.$store
+    });
+  }
+  return model;
+}
 
 export default class Gallery extends EmitAble implements IGallery {
   //region property types
@@ -22,18 +37,85 @@ export default class Gallery extends EmitAble implements IGallery {
   $eventsManger: EventsManager;
   $store: Store;
   $options: AnyObj;
+  currentImageUrl: string;
   dpr: number;
   WIDTH: number;
   HEIGHT: number;
+  imageModelMap: {
+    [prop: string]: ImageModel;
+  };
+  protected urlRing: Ring;
+
+  protected get currentImage() {
+    const url = this.currentImageUrl;
+    return getImageModel.call(this, url);
+  }
+
+  protected get prevImage() {
+    const url = this.prevImageUrl;
+    return getImageModel.call(this, url);
+  }
+
+  protected get nextImage() {
+    const url = this.nextImageUrl;
+    return getImageModel.call(this, url);
+  }
 
   //endregion
+
+  // region 计算属性
+  get prevImageUrl() {
+    return this.urlRing.getPrevBy(this.currentImageUrl);
+  }
+
+  get nextImageUrl() {
+    return this.urlRing.getNextBy(this.currentImageUrl);
+  }
+
+  // endregion
+
   constructor(props: GalleryProps) {
     super();
     if (!props) throw "expect props";
-    this.handlerStore({ ...dftOptions, ...props });
-    this.handlerDOM();
-    this.handlerEvents();
+    const options = Gallery.handlerOptions(props);
+    this.init(options);
   }
+
+  async init(options: GalleryProps) {
+    this.handlerStore(options);
+    this.handlerDOM();
+    this.handlerChildren();
+
+    this.handlerEvents();
+
+    this.render();
+  }
+
+  static handlerOptions(props: GalleryProps) {
+    if (!props.images || !props.images.length)
+      throw "images must contain at least one image url";
+    if (!props.current) {
+      props.current = props.images[0];
+    }
+    return { ...dftOptions, ...props };
+  }
+
+  // region 子组件
+  handlerChildren() {
+    const options = {
+      el: this.$canvas
+    };
+    this.$eventsManger = new EventsManager(options);
+
+    this.urlRing = new Ring(this.$options.images);
+    this.imageModelMap = {};
+
+    this.currentImageUrl = this.$options.current;
+
+    console.log(this.currentImage);
+  }
+
+  // endregion
 
   // region DOM相关
   handlerDOM() {
@@ -42,18 +124,37 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   handlerEvents() {
-    const options = {
-      el: this.$canvas
-    };
-    const events = (this.$eventsManger = new EventsManager(options));
-
+    const events = this.$eventsManger;
     events.on("point-down", e => {
       console.log("point down", e);
+      this.prevImage.start();
+      this.currentImage.start();
+      this.nextImage.start();
     });
     events.on("point-move", e => {
-      console.log("point move", e);
+      console.log("point move", e, this.currentImage.scale);
+      const delta = {
+        x: e.deltaX,
+        y: e.deltaY
+      };
+      if (this.currentImage.scale === 1) {
+        delta.y = 0;
+        this.prevImage.move(delta);
+        this.nextImage.move(delta);
+      }
+      this.currentImage.move(delta);
+      this.render();
+    });
+    events.on("point-up", e => {
+      console.log("point up ", e);
+      if (this.currentImage.shouldNext()) return this.next();
+      if (this.currentImage.shouldPrev()) return this.prev();
+      this.currentImage.x = 0;
+      this.render();
     });
     events.on("zoom", e => {
+      this.currentImage.zoom(e.origin, e.direction);
+      this.render();
       console.log("zoom", e);
     });
   }
@@ -74,7 +175,39 @@ export default class Gallery extends EmitAble implements IGallery {
   // 将store中的字段映射到本类中
   mapStore() {
     this.$store.mapState({ $options: "options" }).call(this);
-    this.$store.mapGetters(["dpr"]).call(this);
+    this.$store.mapGetters(["dpr", "WIDTH", "HEIGHT"]).call(this);
+    console.log(this.WIDTH);
+  }
+
+  // endregion
+
+  // region 渲染
+  async render() {
+    const {
+      ctx,
+      currentImage: current,
+      prevImage: prev,
+      nextImage: next
+    } = this;
+    const noImageList = [current, next, prev].filter(it => !it.img);
+    if (noImageList.length) {
+      console.log("img no image");
+      await Promise.all(noImageList.map(it => it.init()));
+    }
+    const { WIDTH, HEIGHT } = this;
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    ctx.save();
+    ctx.drawImage(prev.img, prev.x - WIDTH, prev.y, prev.width, prev.height);
+    ctx.drawImage(next.img, next.x + WIDTH, next.y, next.width, next.height);
+    ctx.drawImage(
+      current.img,
+      current.x,
+      current.y,
+      current.width,
+      current.height
+    );
+    console.log(prev.x - WIDTH, next.x + WIDTH, current.x, WIDTH, HEIGHT);
+    ctx.restore();
   }
 
   // endregion
@@ -93,9 +226,23 @@ export default class Gallery extends EmitAble implements IGallery {
 
   showFrom(img: HTMLImageElement) {}
 
-  next() {}
+  next() {
+    console.log("next image");
+    this.currentImageUrl = this.urlRing.getNextBy(this.currentImageUrl);
+    this.render();
+    this.prevImage.restore();
+    this.currentImage.restore();
+    this.nextImage.restore();
+  }
 
-  prev() {}
+  prev() {
+    console.log("prev image");
+    this.currentImageUrl = this.urlRing.getPrevBy(this.currentImageUrl);
+    this.render();
+    this.prevImage.restore();
+    this.currentImage.restore();
+    this.nextImage.restore();
+  }
 
   zoomOn(position: Point) {}
 

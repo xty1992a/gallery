@@ -1,5 +1,7 @@
 export interface GalleryProps {
   images: string[];
+  current: string;
+  imageFit?: string;
   autoplay?: boolean;
   duration?: number;
   loop?: boolean;
