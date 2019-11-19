@@ -47,7 +47,7 @@ export default class Gallery extends EmitAble implements IGallery {
   imageModelMap: {
     [prop: string]: ImageModel;
   };
-  protected urlRing: Ring;
+  protected $urlRing: Ring;
   //endregion
 
   // region 计算属性
@@ -67,11 +67,11 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   get prevImageUrl() {
-    return this.urlRing.getPrevBy(this.currentImageUrl);
+    return this.$urlRing.getPrevBy(this.currentImageUrl);
   }
 
   get nextImageUrl() {
-    return this.urlRing.getNextBy(this.currentImageUrl);
+    return this.$urlRing.getNextBy(this.currentImageUrl);
   }
 
   // endregion
@@ -80,10 +80,6 @@ export default class Gallery extends EmitAble implements IGallery {
     super();
     if (!props) throw "expect props";
     const options = Gallery.handlerOptions(props);
-    this.init(options);
-  }
-
-  init(options: GalleryProps) {
     this.handlerStore(options);
     this.handlerDOM();
     this.handlerChildren();
@@ -107,7 +103,7 @@ export default class Gallery extends EmitAble implements IGallery {
     };
     this.$eventsManger = new EventsManager(options);
 
-    this.urlRing = new Ring(this.$options.images);
+    this.$urlRing = new Ring(this.$options.images);
     this.imageModelMap = {};
 
     this.currentImageUrl = this.$options.current;
@@ -125,7 +121,7 @@ export default class Gallery extends EmitAble implements IGallery {
 
   handlerEvents() {
     const events = this.$eventsManger;
-    events.on("point-down", e => {
+    events.on("point-down", () => {
       if (this.currentImage.onAnimation) return;
       // console.log("point down", e);
       this.prevImage.start();
@@ -257,7 +253,7 @@ export default class Gallery extends EmitAble implements IGallery {
       await utils.frame();
       this.render();
     }
-    this.currentImageUrl = this.urlRing.getNextBy(this.currentImageUrl);
+    this.currentImageUrl = this.$urlRing.getNextBy(this.currentImageUrl);
     this.restore();
   }
 
@@ -272,7 +268,7 @@ export default class Gallery extends EmitAble implements IGallery {
       await utils.frame();
       this.render();
     }
-    this.currentImageUrl = this.urlRing.getPrevBy(this.currentImageUrl);
+    this.currentImageUrl = this.$urlRing.getPrevBy(this.currentImageUrl);
     this.restore();
   }
 
