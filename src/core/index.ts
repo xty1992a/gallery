@@ -15,7 +15,7 @@ const dftOptions = {
   zoomable: true,
   touchable: true,
   doubleClickZoom: true,
-  imageFit: "contain",
+  imageFit: "cover",
   devicePixelRatio: window.devicePixelRatio || 1
 };
 
@@ -126,6 +126,7 @@ export default class Gallery extends EmitAble implements IGallery {
   handlerEvents() {
     const events = this.$eventsManger;
     events.on("point-down", e => {
+      if (this.currentImage.onAnimation) return;
       // console.log("point down", e);
       this.prevImage.start();
       this.currentImage.start();
@@ -133,6 +134,7 @@ export default class Gallery extends EmitAble implements IGallery {
     });
     events.on("point-move", e => {
       // console.log("point move", e, this.currentImage.scale);
+      if (this.currentImage.onAnimation) return;
       const delta = {
         x: e.deltaX,
         y: e.deltaY
@@ -147,6 +149,7 @@ export default class Gallery extends EmitAble implements IGallery {
     });
     events.on("point-up", e => {
       // console.log("point up ", e);
+      if (this.currentImage.onAnimation) return;
       if (this.currentImage.scale !== 1) return;
       if (this.currentImage.shouldNext()) return this.next();
       if (this.currentImage.shouldPrev()) return this.prev();
@@ -190,11 +193,10 @@ export default class Gallery extends EmitAble implements IGallery {
       prevImage: prev,
       nextImage: next
     } = this;
-    const noImageList = [current, next, prev].filter(it => !it.img);
-    if (noImageList.length) {
-      // console.log("img no image");
-      await Promise.all(noImageList.map(it => it.init()));
-    }
+    if (!prev.img) await prev.init();
+    if (!current.img) await current.init();
+    if (!next.img) await next.init();
+
     const { WIDTH, HEIGHT } = this;
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     ctx.save();

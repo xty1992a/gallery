@@ -42,9 +42,11 @@ export default class ImageModel implements IImageModel {
   // endregion
 
   async init() {
+    if (this.img) return;
     const props = this.$props;
-    this.mapStore();
     await this.createImage(props.imageUrl);
+    if (this.$options) return;
+    this.mapStore();
     if (!this.img) throw `can not create img by ${props.imageUrl}`;
     this.initPosition();
   }
@@ -142,7 +144,7 @@ export default class ImageModel implements IImageModel {
 
   // 还原
   restore() {
-    console.log("restore");
+    this.onAnimation = false;
     this.position = {
       x: 0,
       y: 0
