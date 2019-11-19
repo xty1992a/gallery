@@ -7,10 +7,13 @@ import ImageModel from "./image-model";
 import { AnyObj } from "../types/index";
 import Ring from "../helpers/ring";
 import * as utils from "../helpers/utils";
+import Tween from "../helpers/tween";
 
 const dftOptions = {
   autoplay: true,
   duration: 1500,
+  animationDuration: 300,
+  animationEasing: Tween.Linear,
   loop: true,
   zoomable: true,
   touchable: true,
@@ -45,7 +48,9 @@ export default class Gallery extends EmitAble implements IGallery {
     [prop: string]: ImageModel;
   };
   protected urlRing: Ring;
+  //endregion
 
+  // region 计算属性
   protected get currentImage() {
     const url = this.currentImageUrl;
     return getImageModel.call(this, url);
@@ -61,9 +66,6 @@ export default class Gallery extends EmitAble implements IGallery {
     return getImageModel.call(this, url);
   }
 
-  //endregion
-
-  // region 计算属性
   get prevImageUrl() {
     return this.urlRing.getPrevBy(this.currentImageUrl);
   }
@@ -81,13 +83,11 @@ export default class Gallery extends EmitAble implements IGallery {
     this.init(options);
   }
 
-  async init(options: GalleryProps) {
+  init(options: GalleryProps) {
     this.handlerStore(options);
     this.handlerDOM();
     this.handlerChildren();
-
     this.handlerEvents();
-
     this.render();
   }
 
@@ -153,7 +153,6 @@ export default class Gallery extends EmitAble implements IGallery {
       if (this.currentImage.scale !== 1) return;
       if (this.currentImage.shouldNext()) return this.next();
       if (this.currentImage.shouldPrev()) return this.prev();
-      console.log(e);
       this.stay(e.directionX);
     });
     events.on("zoom", e => {
@@ -180,7 +179,6 @@ export default class Gallery extends EmitAble implements IGallery {
   mapStore() {
     this.$store.mapState({ $options: "options" }).call(this);
     this.$store.mapGetters(["dpr", "WIDTH", "HEIGHT"]).call(this);
-    console.log(this.WIDTH);
   }
 
   // endregion
@@ -252,6 +250,7 @@ export default class Gallery extends EmitAble implements IGallery {
     console.log("next image");
     const current = this.currentImage,
       sibling = this.nextImage;
+    if (current.onAnimation) return;
     current.startAnimation(1);
     sibling.startAnimation(1);
     while ((current.nextFrame(), sibling.nextFrame())) {
@@ -266,6 +265,7 @@ export default class Gallery extends EmitAble implements IGallery {
     console.log("prev image");
     const current = this.currentImage,
       sibling = this.prevImage;
+    if (current.onAnimation) return;
     current.startAnimation(-1);
     sibling.startAnimation(-1);
     while ((current.nextFrame(), sibling.nextFrame())) {

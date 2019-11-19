@@ -10,6 +10,7 @@ export default class ImageModel implements IImageModel {
   HEIGHT: number;
   $options: AnyObj;
   img: HTMLImageElement;
+  dpr: number;
   x: number;
   y: number;
   width: number;
@@ -122,14 +123,14 @@ export default class ImageModel implements IImageModel {
   }
 
   move(delta: { x: number; y: number }) {
-    this.x = this.position.x + delta.x;
-    this.y = this.position.y + delta.y;
+    this.x = this.position.x + delta.x * this.dpr;
+    this.y = this.position.y + delta.y * this.dpr;
   }
 
   zoom(position: { x: number; y: number }, direction: number) {
     const origin = {
-      x: position.x - this.x,
-      y: position.y - this.y
+      x: position.x * this.dpr - this.x,
+      y: position.y * this.dpr - this.y
     };
     const scale = (this.scale += direction * 0.05);
     const newWidth = this.initialWidth * Math.sqrt(scale);
@@ -160,12 +161,14 @@ export default class ImageModel implements IImageModel {
 
     this.animationManger = new TweenManger({
       start: this.x,
-      end: -direction * this.WIDTH
+      end: -direction * this.WIDTH,
+      duration: this.$options.animationDuration,
+      easing: this.$options.animationEasing
     });
   }
 
   nextFrame() {
-    if (!this.onAnimation) return;
+    if (!this.onAnimation) return false;
     const flag = this.animationManger.next();
     this.x = this.animationManger.currentValue;
     return flag;
@@ -174,6 +177,6 @@ export default class ImageModel implements IImageModel {
   // 将store中的字段映射到本类中
   mapStore() {
     this.$store.mapState({ $options: "options" }).call(this);
-    this.$store.mapGetters(["WIDTH", "HEIGHT"]).call(this);
+    this.$store.mapGetters(["WIDTH", "HEIGHT", "dpr"]).call(this);
   }
 }

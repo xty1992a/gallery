@@ -11,6 +11,8 @@ export interface GalleryProps {
   width?: number;
   height?: number;
   devicePixelRatio?: number;
+  animationDuration?: number;
+  animationEasing?: TweenFn;
 }
 
 export type AnyObj = {
