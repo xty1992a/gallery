@@ -164,3 +164,9 @@ export class Rect {
     return this.x + this.width;
   }
 }
+
+export const sleep = (time: number) =>
+  new Promise(resolve => setTimeout(resolve, time));
+
+export const frame = () =>
+  requestAnimationFrame ? new Promise(requestAnimationFrame) : sleep(16);

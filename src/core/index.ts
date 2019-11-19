@@ -126,13 +126,13 @@ export default class Gallery extends EmitAble implements IGallery {
   handlerEvents() {
     const events = this.$eventsManger;
     events.on("point-down", e => {
-      console.log("point down", e);
+      // console.log("point down", e);
       this.prevImage.start();
       this.currentImage.start();
       this.nextImage.start();
     });
     events.on("point-move", e => {
-      console.log("point move", e, this.currentImage.scale);
+      // console.log("point move", e, this.currentImage.scale);
       const delta = {
         x: e.deltaX,
         y: e.deltaY
@@ -146,11 +146,12 @@ export default class Gallery extends EmitAble implements IGallery {
       this.render();
     });
     events.on("point-up", e => {
-      console.log("point up ", e);
+      // console.log("point up ", e);
+      if (this.currentImage.scale !== 1) return;
       if (this.currentImage.shouldNext()) return this.next();
       if (this.currentImage.shouldPrev()) return this.prev();
-      this.currentImage.x = 0;
-      this.render();
+      console.log(e);
+      this.stay(e.directionX);
     });
     events.on("zoom", e => {
       this.currentImage.zoom(e.origin, e.direction);
@@ -191,7 +192,7 @@ export default class Gallery extends EmitAble implements IGallery {
     } = this;
     const noImageList = [current, next, prev].filter(it => !it.img);
     if (noImageList.length) {
-      console.log("img no image");
+      // console.log("img no image");
       await Promise.all(noImageList.map(it => it.init()));
     }
     const { WIDTH, HEIGHT } = this;
@@ -206,8 +207,15 @@ export default class Gallery extends EmitAble implements IGallery {
       current.width,
       current.height
     );
-    console.log(prev.x - WIDTH, next.x + WIDTH, current.x, WIDTH, HEIGHT);
+    // console.log(prev.x - WIDTH, next.x + WIDTH, current.x, WIDTH, HEIGHT);
     ctx.restore();
+  }
+
+  restore() {
+    this.prevImage.restore();
+    this.currentImage.restore();
+    this.nextImage.restore();
+    this.render();
   }
 
   // endregion
@@ -226,22 +234,44 @@ export default class Gallery extends EmitAble implements IGallery {
 
   showFrom(img: HTMLImageElement) {}
 
-  next() {
-    console.log("next image");
-    this.currentImageUrl = this.urlRing.getNextBy(this.currentImageUrl);
-    this.render();
-    this.prevImage.restore();
-    this.currentImage.restore();
-    this.nextImage.restore();
+  async stay(direction: number) {
+    const current = this.currentImage,
+      sibling = direction > 0 ? this.nextImage : this.prevImage;
+    current.startAnimation(0);
+    sibling.startAnimation(0);
+    while ((current.nextFrame(), sibling.nextFrame())) {
+      await utils.frame();
+      this.render();
+    }
+    this.restore();
   }
 
-  prev() {
+  async next() {
+    console.log("next image");
+    const current = this.currentImage,
+      sibling = this.nextImage;
+    current.startAnimation(1);
+    sibling.startAnimation(1);
+    while ((current.nextFrame(), sibling.nextFrame())) {
+      await utils.frame();
+      this.render();
+    }
+    this.currentImageUrl = this.urlRing.getNextBy(this.currentImageUrl);
+    this.restore();
+  }
+
+  async prev() {
     console.log("prev image");
+    const current = this.currentImage,
+      sibling = this.prevImage;
+    current.startAnimation(-1);
+    sibling.startAnimation(-1);
+    while ((current.nextFrame(), sibling.nextFrame())) {
+      await utils.frame();
+      this.render();
+    }
     this.currentImageUrl = this.urlRing.getPrevBy(this.currentImageUrl);
-    this.render();
-    this.prevImage.restore();
-    this.currentImage.restore();
-    this.nextImage.restore();
+    this.restore();
   }
 
   zoomOn(position: Point) {}

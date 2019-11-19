@@ -1,4 +1,5 @@
 import IImageModel, { ImageModelProps } from "../types/image-model";
+import TweenManger from "../helpers/tween-manager";
 import Store from "../helpers/store";
 import { AnyObj } from "../types/index";
 
@@ -18,6 +19,8 @@ export default class ImageModel implements IImageModel {
   initialWidth: number;
   initialHeight: number;
   scale: number;
+  onAnimation: boolean;
+  animationManger: TweenManger;
   $props: ImageModelProps;
   position: {
     x: number;
@@ -90,8 +93,6 @@ export default class ImageModel implements IImageModel {
     this.initialHeight = this.height;
     this.initialX = this.x;
     this.initialY = this.y;
-
-    console.log(this);
   }
 
   static loadImage(url: string): Promise<HTMLImageElement | null> {
@@ -104,7 +105,6 @@ export default class ImageModel implements IImageModel {
   }
 
   start() {
-    console.log("start");
     this.position = {
       x: this.x,
       y: this.y
@@ -112,11 +112,11 @@ export default class ImageModel implements IImageModel {
   }
 
   shouldNext() {
-    return this.x < -this.WIDTH / 2;
+    return this.x < -this.WIDTH / 3;
   }
 
   shouldPrev() {
-    return this.x > this.WIDTH / 2;
+    return this.x > this.WIDTH / 3;
   }
 
   move(delta: { x: number; y: number }) {
@@ -142,6 +142,7 @@ export default class ImageModel implements IImageModel {
 
   // 还原
   restore() {
+    console.log("restore");
     this.position = {
       x: 0,
       y: 0
@@ -152,9 +153,21 @@ export default class ImageModel implements IImageModel {
     this.height = this.initialHeight;
   }
 
-  in() {}
+  startAnimation(direction: number) {
+    this.onAnimation = true;
 
-  out() {}
+    this.animationManger = new TweenManger({
+      start: this.x,
+      end: -direction * this.WIDTH
+    });
+  }
+
+  nextFrame() {
+    if (!this.onAnimation) return;
+    const flag = this.animationManger.next();
+    this.x = this.animationManger.currentValue;
+    return flag;
+  }
 
   // 将store中的字段映射到本类中
   mapStore() {
