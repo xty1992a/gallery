@@ -10,7 +10,9 @@ const gallery = (window.gallery = new Gallery({
     ...Array(10)
       .fill(0)
       .map((n, i) => `./static/${i + 1}.jpg`)
-  ]
+  ],
+  animationDuration: 160,
+  imageFit: "contain"
 }));
 
 const el = document.createElement("div");

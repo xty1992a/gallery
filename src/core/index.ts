@@ -98,17 +98,14 @@ export default class Gallery extends EmitAble implements IGallery {
 
   // region 子组件
   handlerChildren() {
-    const options = {
-      el: this.$canvas
-    };
-    this.$eventsManger = new EventsManager(options);
-
+    // 实例化监听器
+    this.$eventsManger = new EventsManager({ el: this.$canvas });
+    // 实例化环
     this.$urlRing = new Ring(this.$options.images);
+    // 初始化imageModel缓存容器
     this.imageModelMap = {};
-
+    // 初始化当前imageModel
     this.currentImageUrl = this.$options.current;
-
-    console.log(this.currentImage);
   }
 
   // endregion
@@ -120,10 +117,11 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   handlerEvents() {
+    // 监听事件监听器派发的事件
     const events = this.$eventsManger;
     events.on("point-down", () => {
       if (this.currentImage.onAnimation) return;
-      // console.log("point down", e);
+      // 各imageModel记录当前位置
       this.prevImage.start();
       this.currentImage.start();
       this.nextImage.start();
@@ -135,20 +133,24 @@ export default class Gallery extends EmitAble implements IGallery {
         x: e.deltaX,
         y: e.deltaY
       };
+      // 没有缩放时,为轮播模式
       if (this.currentImage.scale === 1) {
         delta.y = 0;
         this.prevImage.move(delta);
         this.nextImage.move(delta);
       }
+      // 否则为预览模式
       this.currentImage.move(delta);
       this.render();
     });
     events.on("point-up", e => {
-      // console.log("point up ", e);
       if (this.currentImage.onAnimation) return;
+      // 缩放时,什么都不做
       if (this.currentImage.scale !== 1) return;
+      // 没有缩放时,检查移动方向
       if (this.currentImage.shouldNext()) return this.next();
       if (this.currentImage.shouldPrev()) return this.prev();
+      // 移动不足切换,回到原位
       this.stay(e.directionX);
     });
     events.on("zoom", e => {
@@ -231,11 +233,13 @@ export default class Gallery extends EmitAble implements IGallery {
   showFrom(img: HTMLImageElement) {}
 
   async stay(direction: number) {
+    console.log("stay");
     const current = this.currentImage,
       sibling = direction > 0 ? this.nextImage : this.prevImage;
     current.startAnimation(0);
     sibling.startAnimation(0);
-    while ((current.nextFrame(), sibling.nextFrame())) {
+    // 穷尽imageModel的每一帧
+    while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
       this.render();
     }
@@ -247,9 +251,9 @@ export default class Gallery extends EmitAble implements IGallery {
     const current = this.currentImage,
       sibling = this.nextImage;
     if (current.onAnimation) return;
-    current.startAnimation(1);
-    sibling.startAnimation(1);
-    while ((current.nextFrame(), sibling.nextFrame())) {
+    current.startAnimation(-1);
+    sibling.startAnimation(-1);
+    while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
       this.render();
     }
@@ -262,9 +266,9 @@ export default class Gallery extends EmitAble implements IGallery {
     const current = this.currentImage,
       sibling = this.prevImage;
     if (current.onAnimation) return;
-    current.startAnimation(-1);
-    sibling.startAnimation(-1);
-    while ((current.nextFrame(), sibling.nextFrame())) {
+    current.startAnimation(1);
+    sibling.startAnimation(1);
+    while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
       this.render();
     }

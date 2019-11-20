@@ -79,12 +79,13 @@ export default class ImageModel implements IImageModel {
         this.y = (HEIGHT - this.height) / 2;
         break;
       case "contain":
+        console.log(ratio, RATIO);
         if (ratio > RATIO) {
           this.width = WIDTH;
           this.height = WIDTH / ratio;
         } else {
           this.height = HEIGHT;
-          this.width = WIDTH / ratio;
+          this.width = HEIGHT * ratio;
         }
         this.x = (WIDTH - this.width) / 2;
         this.y = (HEIGHT - this.height) / 2;
@@ -147,8 +148,8 @@ export default class ImageModel implements IImageModel {
   restore() {
     this.onAnimation = false;
     this.position = {
-      x: 0,
-      y: 0
+      x: this.initialX,
+      y: this.initialY
     };
     this.x = this.initialX;
     this.y = this.initialY;
@@ -161,7 +162,7 @@ export default class ImageModel implements IImageModel {
 
     this.animationManger = new TweenManger({
       start: this.x,
-      end: -direction * this.WIDTH,
+      end: this.initialX + direction * this.WIDTH,
       duration: this.$options.animationDuration,
       easing: this.$options.animationEasing
     });
