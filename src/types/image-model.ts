@@ -4,7 +4,7 @@ import Store from "../helpers/store";
 export default interface IImageModel {
   onAnimation: boolean;
   init: () => void;
-  startAnimation: (direction: number) => void;
+  startMove: (direction: number) => void;
   start: () => void;
   restore: () => void;
   shouldNext: () => boolean;

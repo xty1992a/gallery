@@ -36,15 +36,15 @@ function getImageModel(url: string) {
 export default class Gallery extends EmitAble implements IGallery {
   //region property types
   $canvas: HTMLCanvasElement;
-  ctx: CanvasRenderingContext2D;
-  $eventsManger: EventsManager;
+  protected ctx: CanvasRenderingContext2D;
+  protected $eventsManger: EventsManager;
   $store: Store;
   $options: AnyObj;
   currentImageUrl: string;
   dpr: number;
   WIDTH: number;
   HEIGHT: number;
-  imageModelMap: {
+  protected imageModelMap: {
     [prop: string]: ImageModel;
   };
   protected $urlRing: Ring;
@@ -97,7 +97,7 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   // region 子组件
-  handlerChildren() {
+  protected handlerChildren() {
     // 实例化监听器
     this.$eventsManger = new EventsManager({ el: this.$canvas });
     // 实例化环
@@ -111,12 +111,12 @@ export default class Gallery extends EmitAble implements IGallery {
   // endregion
 
   // region DOM相关
-  handlerDOM() {
+  protected handlerDOM() {
     const canvas = (this.$canvas = document.createElement("canvas"));
     this.ctx = canvas.getContext("2d");
   }
 
-  handlerEvents() {
+  protected handlerEvents() {
     // 监听事件监听器派发的事件
     const events = this.$eventsManger;
     events.on("point-down", () => {
@@ -144,12 +144,14 @@ export default class Gallery extends EmitAble implements IGallery {
       this.render();
     });
     events.on("point-up", e => {
+      console.log("point-up");
       if (this.currentImage.onAnimation) return;
       // 缩放时,什么都不做
-      if (this.currentImage.scale !== 1) return;
+      if (this.currentImage.zoomDirection < 0) return;
+      ["x", "y"].forEach(k => console.log(this.currentImage[k]));
       // 没有缩放时,检查移动方向
-      if (this.currentImage.shouldNext()) return this.next();
-      if (this.currentImage.shouldPrev()) return this.prev();
+      // if (this.currentImage.shouldNext()) return this.next();
+      // if (this.currentImage.shouldPrev()) return this.prev();
       // 移动不足切换,回到原位
       this.stay(e.directionX);
     });
@@ -158,23 +160,28 @@ export default class Gallery extends EmitAble implements IGallery {
       this.render();
       console.log("zoom", e);
     });
+    events.on("db-click", e => {
+      // this.currentImage.zoom(e, 1);
+      // this.render();
+      this.zoomOn(e);
+    });
   }
 
   // endregion
 
   // region store 相关
-  handlerStore(options: GalleryProps) {
+  protected handlerStore(options: GalleryProps) {
     this.$store = new Store(store);
     this.commitOptions(options);
     this.mapStore();
   }
 
-  commitOptions(options: object) {
+  protected commitOptions(options: object) {
     this.$store.commit("SET_OPTIONS", options);
   }
 
   // 将store中的字段映射到本类中
-  mapStore() {
+  protected mapStore() {
     this.$store.mapState({ $options: "options" }).call(this);
     this.$store.mapGetters(["dpr", "WIDTH", "HEIGHT"]).call(this);
   }
@@ -182,7 +189,7 @@ export default class Gallery extends EmitAble implements IGallery {
   // endregion
 
   // region 渲染
-  async render() {
+  protected async render() {
     const {
       ctx,
       currentImage: current,
@@ -236,8 +243,8 @@ export default class Gallery extends EmitAble implements IGallery {
     console.log("stay");
     const current = this.currentImage,
       sibling = direction > 0 ? this.nextImage : this.prevImage;
-    current.startAnimation(0);
-    sibling.startAnimation(0);
+    current.startMove(0);
+    sibling.startMove(0);
     // 穷尽imageModel的每一帧
     while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
@@ -251,8 +258,8 @@ export default class Gallery extends EmitAble implements IGallery {
     const current = this.currentImage,
       sibling = this.nextImage;
     if (current.onAnimation) return;
-    current.startAnimation(-1);
-    sibling.startAnimation(-1);
+    current.startMove(-1);
+    sibling.startMove(-1);
     while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
       this.render();
@@ -266,8 +273,8 @@ export default class Gallery extends EmitAble implements IGallery {
     const current = this.currentImage,
       sibling = this.prevImage;
     if (current.onAnimation) return;
-    current.startAnimation(1);
-    sibling.startAnimation(1);
+    current.startMove(1);
+    sibling.startMove(1);
     while (current.nextFrame() && sibling.nextFrame()) {
       await utils.frame();
       this.render();
@@ -276,7 +283,16 @@ export default class Gallery extends EmitAble implements IGallery {
     this.restore();
   }
 
-  zoomOn(position: Point) {}
+  async zoomOn(position: Point) {
+    const current = this.currentImage;
+    if (current.onAnimation) return;
+    current.startZoom();
+    while (current.nextFrame()) {
+      await utils.frame();
+      this.render();
+    }
+    current.onAnimation = false;
+  }
 
   // endregion
 }

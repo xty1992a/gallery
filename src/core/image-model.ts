@@ -21,12 +21,13 @@ export default class ImageModel implements IImageModel {
   initialHeight: number;
   scale: number;
   onAnimation: boolean;
-  animationManger: TweenManger;
+  animationManger: TweenManger<number> | TweenManger<number[]>;
   $props: ImageModelProps;
   position: {
     x: number;
     y: number;
   };
+  protected zoomDirection: number;
 
   // endregion
 
@@ -65,7 +66,6 @@ export default class ImageModel implements IImageModel {
       RATIO
     } = this;
     const ratio = width / height;
-    console.log(width, WIDTH, RATIO, ratio);
     switch ($options.imageFit) {
       case "cover":
         if (ratio > RATIO) {
@@ -79,7 +79,6 @@ export default class ImageModel implements IImageModel {
         this.y = (HEIGHT - this.height) / 2;
         break;
       case "contain":
-        console.log(ratio, RATIO);
         if (ratio > RATIO) {
           this.width = WIDTH;
           this.height = WIDTH / ratio;
@@ -92,6 +91,7 @@ export default class ImageModel implements IImageModel {
         break;
     }
 
+    this.zoomDirection = 1;
     this.scale = 1;
     this.initialWidth = this.width;
     this.initialHeight = this.height;
@@ -116,6 +116,7 @@ export default class ImageModel implements IImageModel {
   }
 
   shouldNext() {
+    console.log(this.x, this.WIDTH);
     return this.x < -this.WIDTH / 3;
   }
 
@@ -146,6 +147,7 @@ export default class ImageModel implements IImageModel {
 
   // 还原
   restore() {
+    this.zoomDirection = 1;
     this.onAnimation = false;
     this.position = {
       x: this.initialX,
@@ -157,10 +159,26 @@ export default class ImageModel implements IImageModel {
     this.height = this.initialHeight;
   }
 
-  startAnimation(direction: number) {
+  startZoom() {
+    this.onAnimation = true;
+    const end =
+      this.zoomDirection > 0
+        ? [-this.width * 5, -this.height * 5, this.width * 10, this.height * 10]
+        : [this.initialX, this.initialY, this.initialWidth, this.initialHeight];
+    this.zoomDirection = 0 - this.zoomDirection;
+    this.animationManger = new TweenManger<number[]>({
+      start: [this.x, this.y, this.width, this.height],
+      end,
+      duration: this.$options.animationDuration,
+      easing: this.$options.animationEasing
+    });
+  }
+
+  startMove(direction: number) {
     this.onAnimation = true;
 
-    this.animationManger = new TweenManger({
+    // 实例化tween管理器
+    this.animationManger = new TweenManger<number>({
       start: this.x,
       end: this.initialX + direction * this.WIDTH,
       duration: this.$options.animationDuration,
@@ -171,7 +189,17 @@ export default class ImageModel implements IImageModel {
   nextFrame() {
     if (!this.onAnimation) return false;
     const flag = this.animationManger.next();
-    this.x = this.animationManger.currentValue;
+    const value = this.animationManger.currentValue;
+    if (typeof value === "number") {
+      this.x = value;
+    } else if (Array.isArray(value)) {
+      this.x = value[0];
+      this.y = value[1];
+      this.width = value[2];
+      this.height = value[3];
+    } else {
+      return false;
+    }
     return flag;
   }
 

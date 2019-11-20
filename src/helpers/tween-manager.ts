@@ -8,24 +8,29 @@ const dftOption = {
 };
 
 interface Props {
-  start: number;
-  end: number;
+  start: number | number[];
+  end: number | number[];
   duration?: number;
   easing?: TweenFn;
 }
 
-export default class TweenManager {
-  // region types
-  $options: {
-    [prop: string]: any;
-  };
+type NumberOrNumberArray = number | number[];
 
+export default class TweenManager<T extends NumberOrNumberArray> {
+  // region types
+  $options: Props;
   stamp: number;
 
   // endregion
 
   get distance() {
-    return this.$options.end - this.$options.start;
+    const { end, start } = this.$options;
+    if (typeof end === "number" && typeof start === "number") {
+      return end - start;
+    }
+    if (Array.isArray(end) && Array.isArray(start)) {
+      return end.map((e, i) => e - start[i]);
+    }
   }
 
   get now() {
@@ -36,10 +41,17 @@ export default class TweenManager {
     return this.now - this.stamp;
   }
 
-  get currentValue() {
+  get currentValue(): T {
     const { distance, currentStep } = this;
     const { duration, easing, start } = this.$options;
-    return easing(currentStep, start, distance, duration);
+    if (typeof distance === "number" && typeof start === "number") {
+      return easing(currentStep, start, distance, duration) as T;
+    }
+    if (Array.isArray(distance) && Array.isArray(start)) {
+      return distance.map((d, i) =>
+        easing(currentStep, start[i], d, duration)
+      ) as T;
+    }
   }
 
   constructor(opt: Props) {

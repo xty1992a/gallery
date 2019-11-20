@@ -26,12 +26,15 @@ const EVENTS: Events = {
 };
 
 export default class EventsManager extends EmitAble implements IEventsManger {
-  $props: EventsManagerProps;
-  $store: Store;
+  protected $props: EventsManagerProps;
+  protected $store: Store;
   protected positionTimer: number;
   protected isDown: boolean;
+  protected isMove: boolean;
+  protected isUp: boolean;
+  protected __db_check_timer__: number;
   protected wrapBoundingRect: { x: number; y: number };
-  state: {
+  protected state: {
     startX: number;
     startY: number;
     startDistance: number;
@@ -44,14 +47,14 @@ export default class EventsManager extends EmitAble implements IEventsManger {
     this.handlerEvents();
   }
 
-  handlerEvents() {
+  protected handlerEvents() {
     this.$props.el.addEventListener(EVENTS.down, this.onDown);
     this.$props.el.addEventListener(EVENTS.move, this.onMove);
     this.$props.el.addEventListener(EVENTS.up, this.onUp);
     listenWheel(this.$props.el, this.onMouseWheel);
   }
 
-  restoreState() {
+  protected restoreState() {
     this.state = {
       startDistance: 0,
       startX: 0,
@@ -63,9 +66,10 @@ export default class EventsManager extends EmitAble implements IEventsManger {
     };
   }
 
-  onDown = (e: MouseEvent & TouchEvent) => {
+  protected onDown = (e: MouseEvent & TouchEvent) => {
     e.preventDefault();
     this.isDown = true;
+    this.isMove = false;
     this.restoreState();
     if (e.touches && e.touches.length > 1) {
       const A = this.getEventPoint(e.touches[0]);
@@ -80,8 +84,9 @@ export default class EventsManager extends EmitAble implements IEventsManger {
     this.state.startY = point.clientY;
     this.fire("point-down", { x, y });
   };
-  onMove = (e: MouseEvent & TouchEvent) => {
+  protected onMove = (e: MouseEvent & TouchEvent) => {
     if (!this.isDown) return;
+    this.isMove = true;
     e.preventDefault();
     if (e.touches && e.touches.length > 1) {
       return this.onTouchZoom(e);
@@ -94,26 +99,41 @@ export default class EventsManager extends EmitAble implements IEventsManger {
     const deltaY = clientY - startY;
     this.fire("point-move", { deltaX, deltaY });
   };
-  onUp = (e: MouseEvent & TouchEvent) => {
+  protected onUp = (e: MouseEvent & TouchEvent) => {
     this.isDown = false;
     e.preventDefault();
     const point = e.changedTouches ? e.changedTouches[0] : e;
     const { x, y } = this.getEventPoint(point);
     const fmt = (x: number) => Math.abs(x) / (x * -1);
-    this.fire("point-up", {
-      x,
-      y,
-      directionX: fmt(x - this.state.startX),
-      directionY: fmt(y - this.state.startY)
-    });
+
+    if (this.isUp) {
+      this.fire("db-click", { x, y });
+      this.isUp = false;
+      clearTimeout(this.__db_check_timer__);
+      return;
+    }
+    this.isUp = true;
+
+    this.__db_check_timer__ = window.setTimeout(
+      () => {
+        this.isUp = false;
+        this.fire("point-up", {
+          x,
+          y,
+          directionX: fmt(x - this.state.startX),
+          directionY: fmt(y - this.state.startY)
+        });
+      },
+      this.isMove ? 0 : 300
+    );
   };
-  onMouseWheel = (e: MouseWheelEvent) => {
+  protected onMouseWheel = (e: MouseWheelEvent) => {
     e.preventDefault();
     const direction = limit(-1, 1)(e.deltaY || e.detail);
     const origin = this.getEventPoint(e);
     this.fire("zoom", { origin, direction });
   };
-  onTouchZoom = (e: TouchEvent) => {
+  protected onTouchZoom = (e: TouchEvent) => {
     const A = this.getEventPoint(e.touches[0]);
     const B = this.getEventPoint(e.touches[1]);
     const distance = getDistanceBetween(A, B);
@@ -123,7 +143,13 @@ export default class EventsManager extends EmitAble implements IEventsManger {
   };
 
   // 将鼠标/触摸点坐标转换为canvas内部坐标
-  getEventPoint({ clientX, clientY }: { clientX: number; clientY: number }) {
+  protected getEventPoint({
+    clientX,
+    clientY
+  }: {
+    clientX: number;
+    clientY: number;
+  }) {
     // 节流慢操作
     clearTimeout(this.positionTimer);
     if (!this.wrapBoundingRect) {

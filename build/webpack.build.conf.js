@@ -14,20 +14,19 @@ const workspace = root(".");
 module.exports = () =>
   merge(base({ root, workspace }), {
     mode: "production",
-    // entry: root("src/packages/main.js"),
-    entry: root("src/core/cropper.ts"),
+    entry: root("src/core/index.ts"),
     output: {
       path: path.resolve(__dirname, "../lib"),
-      filename: "cropper.js",
+      filename: "gallery.js",
       publicPath: "/",
-      library: "Cropper",
+      library: "Gallery",
       libraryTarget: "umd",
-      libraryExport: "default", // 需要暴露的模块
+      // libraryExport: "default", // 需要暴露的模块
       umdNamedDefine: true
     },
     performance: false,
     optimization: {
       minimize: true
-    }
-    // plugins: [new BundleAnalyzerPlugin()]
+    },
+    plugins: [new BundleAnalyzerPlugin()]
   });
