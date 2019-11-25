@@ -1,7 +1,7 @@
 import IImageModel, { ImageModelProps } from "../types/image-model";
 import TweenManger from "../helpers/tween-manager";
 import Store from "../helpers/store";
-import { AnyObj } from "../types/index";
+import { AnyObj, Point } from "../types/index";
 
 export default class ImageModel implements IImageModel {
   // region types
@@ -159,18 +159,27 @@ export default class ImageModel implements IImageModel {
     this.height = this.initialHeight;
   }
 
-  startZoom() {
+  startZoom(position: Point) {
+    const origin = {
+      x: this.dpr * position.x - this.x,
+      y: this.dpr * position.y - this.y
+    };
     this.onAnimation = true;
+
+    const newWidth = this.initialWidth * 10;
+    const newHeight = this.initialHeight * 10;
+    const x = this.x + (origin.x - (origin.x / this.width) * newWidth);
+    const y = this.y + (origin.y - (origin.y / this.height) * newHeight);
+
     const end =
       this.zoomDirection > 0
-        ? [-this.width * 5, -this.height * 5, this.width * 10, this.height * 10]
+        ? [x, y, newWidth, newHeight]
         : [this.initialX, this.initialY, this.initialWidth, this.initialHeight];
-    this.zoomDirection = 0 - this.zoomDirection;
+    this.zoomDirection = 0 - this.zoomDirection; // 反转方向
     this.animationManger = new TweenManger<number[]>({
       start: [this.x, this.y, this.width, this.height],
       end,
-      duration: this.$options.animationDuration,
-      easing: this.$options.animationEasing
+      duration: this.$options.animationDuration
     });
   }
 
@@ -188,8 +197,11 @@ export default class ImageModel implements IImageModel {
 
   nextFrame() {
     if (!this.onAnimation) return false;
-    const flag = this.animationManger.next();
-    const value = this.animationManger.currentValue;
+    let flag = this.animationManger.next();
+    let value = this.animationManger.currentValue;
+    if (!flag) {
+      value = this.animationManger.$options.end;
+    }
     if (typeof value === "number") {
       this.x = value;
     } else if (Array.isArray(value)) {

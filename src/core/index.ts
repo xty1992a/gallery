@@ -134,7 +134,7 @@ export default class Gallery extends EmitAble implements IGallery {
         y: e.deltaY
       };
       // 没有缩放时,为轮播模式
-      if (this.currentImage.scale === 1) {
+      if (this.currentImage.width === this.currentImage.initialWidth) {
         delta.y = 0;
         this.prevImage.move(delta);
         this.nextImage.move(delta);
@@ -144,14 +144,14 @@ export default class Gallery extends EmitAble implements IGallery {
       this.render();
     });
     events.on("point-up", e => {
-      console.log("point-up");
+      console.log("point-up", e);
       if (this.currentImage.onAnimation) return;
       // 缩放时,什么都不做
       if (this.currentImage.zoomDirection < 0) return;
       ["x", "y"].forEach(k => console.log(this.currentImage[k]));
       // 没有缩放时,检查移动方向
-      // if (this.currentImage.shouldNext()) return this.next();
-      // if (this.currentImage.shouldPrev()) return this.prev();
+      if (this.currentImage.shouldNext()) return this.next();
+      if (this.currentImage.shouldPrev()) return this.prev();
       // 移动不足切换,回到原位
       this.stay(e.directionX);
     });
@@ -286,11 +286,13 @@ export default class Gallery extends EmitAble implements IGallery {
   async zoomOn(position: Point) {
     const current = this.currentImage;
     if (current.onAnimation) return;
-    current.startZoom();
+    current.startZoom(position);
     while (current.nextFrame()) {
       await utils.frame();
       this.render();
     }
+    this.render();
+    console.log(current.width, current.initialWidth, "after zoom");
     current.onAnimation = false;
   }
 

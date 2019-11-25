@@ -16,10 +16,13 @@ interface Props {
 
 type NumberOrNumberArray = number | number[];
 
+const now = () => (Date.now ? Date.now() : new Date().getTime());
+
 export default class TweenManager<T extends NumberOrNumberArray> {
   // region types
   $options: Props;
   stamp: number;
+  currentStep: number;
 
   // endregion
 
@@ -33,13 +36,9 @@ export default class TweenManager<T extends NumberOrNumberArray> {
     }
   }
 
-  get now() {
-    return Date.now ? Date.now() : new Date().getTime();
-  }
-
-  get currentStep() {
-    return this.now - this.stamp;
-  }
+  /*  get currentStep() {
+      return now() - this.stamp;
+    }*/
 
   get currentValue(): T {
     const { distance, currentStep } = this;
@@ -56,10 +55,11 @@ export default class TweenManager<T extends NumberOrNumberArray> {
 
   constructor(opt: Props) {
     this.$options = { ...dftOption, ...(opt || {}) };
-    this.stamp = this.now;
+    this.stamp = now();
   }
 
   next() {
+    this.currentStep = now() - this.stamp;
     return this.$options.duration > this.currentStep;
   }
 
