@@ -21,6 +21,7 @@ const dftOptions = {
   imageFit: "cover",
   devicePixelRatio: window.devicePixelRatio || 1
 };
+const preFetchMap: AnyObj = {};
 
 function getImageModel(url: string) {
   let model = this.imageModelMap[url];
@@ -31,6 +32,14 @@ function getImageModel(url: string) {
     });
   }
   return model;
+}
+
+function prefetch(url: string) {
+  if (preFetchMap[url]) return;
+  preFetchMap[url] = true;
+  const img = new Image();
+  img.src = url;
+  img.addEventListener("error", () => (preFetchMap[url] = false));
 }
 
 export default class Gallery extends EmitAble implements IGallery {
@@ -67,11 +76,15 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   get prevImageUrl() {
-    return this.$urlRing.getPrevBy(this.currentImageUrl);
+    const url = this.$urlRing.getPrevBy(this.currentImageUrl);
+    prefetch(this.$urlRing.getPrevBy(url));
+    return url;
   }
 
   get nextImageUrl() {
-    return this.$urlRing.getNextBy(this.currentImageUrl);
+    const url = this.$urlRing.getNextBy(this.currentImageUrl);
+    prefetch(this.$urlRing.getNextBy(url));
+    return url;
   }
 
   // endregion
@@ -80,10 +93,10 @@ export default class Gallery extends EmitAble implements IGallery {
     super();
     if (!props) throw "expect props";
     const options = Gallery.handlerOptions(props);
-    this.handlerStore(options);
-    this.handlerDOM();
-    this.handlerChildren();
-    this.handlerEvents();
+    this.handleStore(options);
+    this.handleDOM();
+    this.handleChildren();
+    this.handleEvents();
     this.render();
   }
 
@@ -97,7 +110,7 @@ export default class Gallery extends EmitAble implements IGallery {
   }
 
   // region 子组件
-  protected handlerChildren() {
+  protected handleChildren() {
     // 实例化监听器
     this.$eventsManger = new EventsManager({ el: this.$canvas });
     // 实例化环
@@ -111,12 +124,12 @@ export default class Gallery extends EmitAble implements IGallery {
   // endregion
 
   // region DOM相关
-  protected handlerDOM() {
+  protected handleDOM() {
     const canvas = (this.$canvas = document.createElement("canvas"));
     this.ctx = canvas.getContext("2d");
   }
 
-  protected handlerEvents() {
+  protected handleEvents() {
     // 监听事件监听器派发的事件
     const events = this.$eventsManger;
     events.on("point-down", () => {
@@ -148,7 +161,6 @@ export default class Gallery extends EmitAble implements IGallery {
       if (this.currentImage.onAnimation) return;
       // 缩放时,什么都不做
       if (this.currentImage.zoomDirection < 0) return;
-      ["x", "y"].forEach(k => console.log(this.currentImage[k]));
       // 没有缩放时,检查移动方向
       if (this.currentImage.shouldNext()) return this.next();
       if (this.currentImage.shouldPrev()) return this.prev();
@@ -170,7 +182,7 @@ export default class Gallery extends EmitAble implements IGallery {
   // endregion
 
   // region store 相关
-  protected handlerStore(options: GalleryProps) {
+  protected handleStore(options: GalleryProps) {
     this.$store = new Store(store);
     this.commitOptions(options);
     this.mapStore();
@@ -292,7 +304,6 @@ export default class Gallery extends EmitAble implements IGallery {
       this.render();
     }
     this.render();
-    console.log(current.width, current.initialWidth, "after zoom");
     current.onAnimation = false;
   }
 

@@ -116,7 +116,6 @@ export default class ImageModel implements IImageModel {
   }
 
   shouldNext() {
-    console.log(this.x, this.WIDTH);
     return this.x < -this.WIDTH / 3;
   }
 

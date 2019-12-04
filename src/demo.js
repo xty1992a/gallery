@@ -11,12 +11,13 @@ const gallery = (window.gallery = new Gallery({
       .fill(0)
       .map((n, i) => `./static/${i + 1}.jpg`)
   ],
-  animationDuration: 160,
+  // animationDuration: 160,
+  // animationEasing: Tween.Back.easeIn,
   imageFit: "contain"
 }));
 
 const el = document.createElement("div");
-el.style.cssText = "width:300px;height:375px;border: 1px solid";
+el.style.cssText = "width:600px;height:375px;border: 1px solid";
 const panel = document.createElement("div");
 panel.style.cssText = `width:600px;display:flex;justify-content:space-between;padding:10px 20px;box-sizing:border-box;`;
 panel.innerHTML = `
